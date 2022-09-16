@@ -5,8 +5,7 @@ use ordered_float::OrderedFloat;
 use std::cmp::Ord;
 use std::cmp::Ordering;
 
-
-trait Creator
+pub trait Creator
 {
     /// Create a new type
     /// 
@@ -17,7 +16,7 @@ trait Creator
 }
 
 #[derive(PartialEq,Eq, Ord, PartialOrd, Debug)]
-struct AskKey(OrderedFloat<f32>);
+pub struct AskKey(OrderedFloat<f32>);
 
 impl Creator for AskKey
 {
@@ -30,7 +29,7 @@ impl Creator for AskKey
 //////////////////////////// BIDKEY /////////////////////////////// 
 
 #[derive(Debug)]
-struct BidKey(OrderedFloat<f32>);
+pub struct BidKey(OrderedFloat<f32>);
 
 impl Creator for BidKey
 {
@@ -98,7 +97,7 @@ impl OrderBook {
 
     pub fn new(symbol: &str) -> OrderBook
     {
-        OrderBook { _symbol : String::from(symbol), 
+        OrderBook { _symbol : symbol.to_string(), 
                     _bid: BTreeMap::new(), 
                     _ask: BTreeMap::new()}
     }

@@ -27,6 +27,15 @@ pub struct Trade
     pub qty : u32,
 }
 
+impl Trade
+{
+    pub fn new(aggressive_id : u32, passive_id : u32, price : f32, qty : u32) -> Trade
+    {
+        Trade { aggressive_id: aggressive_id, 
+                passive_id: passive_id, price: price, qty: qty }
+    }
+}
+
 #[derive(Debug)]
 pub struct Limit
 {
@@ -94,7 +103,7 @@ impl Limit
             }
 
             let mut need_to_remove = false;
-            if let Some(passive_order) = self.orders.last_mut()
+            if let Some(passive_order) = self.orders.first_mut()
             {
                 let traded_quantity = cmp::min(aggressive_order.qty, passive_order.qty);
                 aggressive_order.qty -= traded_quantity;
@@ -166,7 +175,7 @@ mod tests
     #[test]
     fn can_remove_order_at_limit()
     {
-        let mut limit = Limit::new(12.12);
+        let mut limit = Limit::new(12.2f32);
         let order = Order{id:1, side: Side::Buy, price:12.2f32, qty:100};
         let order2 = Order{id:2, side: Side::Buy, price:12.2f32, qty:22};
         limit.add_order(order);
@@ -197,8 +206,8 @@ mod tests
 
         let mut order_to_match = Order{id : 4, side : Side::Sell, price:12.2f32, qty : 90};
         let trades = limit.make_trades(&mut order_to_match);
-        assert_eq!(trades.len(), 3);
-        assert_eq!(limit.num_orders(), 1);
+        assert_eq!(trades.len(), 1);
+        assert_eq!(limit.num_orders(), 3);
         assert_eq!(limit.qty, 166 - 90);
 
         println!("trades = {:?}", trades);
