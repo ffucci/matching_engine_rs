@@ -1,4 +1,6 @@
 #![crate_name = "doc"]
+use std::cmp;
+use ordered_float::OrderedFloat;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Side
@@ -12,6 +14,15 @@ pub struct Order
 {
     pub id : u32,
     pub side : Side,
+    pub price : f32,
+    pub qty : u32,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct Trade
+{
+    pub aggressive_id : u32,
+    pub passive_id : u32,
     pub price : f32,
     pub qty : u32,
 }
@@ -64,6 +75,51 @@ impl Limit
             None => Err("cannot remove"),
         }
     }
+
+    pub fn make_trades(&mut self, aggressive_order : &mut Order) -> Vec<Trade>
+    {
+        // Cannot make any trade if the price do not match or is empty
+        let mut trades = Vec::new();
+
+        if OrderedFloat(self.price) != OrderedFloat(aggressive_order.price) || self.orders.is_empty()
+        {
+            return trades;
+        }
+
+        loop
+        {
+            if aggressive_order.qty == 0 || self.orders.is_empty()
+            {
+                break;
+            }
+
+            let mut need_to_remove = false;
+            if let Some(passive_order) = self.orders.last_mut()
+            {
+                let traded_quantity = cmp::min(aggressive_order.qty, passive_order.qty);
+                aggressive_order.qty -= traded_quantity;
+                passive_order.qty -= traded_quantity;
+                self.qty -= traded_quantity;
+                if passive_order.qty == 0
+                {
+                    need_to_remove = true;
+                }
+    
+                trades.push(Trade{aggressive_id : aggressive_order.id, 
+                    passive_id : passive_order.id, 
+                    price : passive_order.price, 
+                    qty : traded_quantity})
+            }
+
+            if need_to_remove
+            {
+                self.orders.pop();
+            }
+        }
+        
+        return trades;
+    }
+
 
     pub fn num_orders(&self) -> usize
     {
@@ -122,5 +178,29 @@ mod tests
         assert_eq!(res.unwrap(), order);
         assert_eq!(limit.orders.len(), 1);
         assert_eq!(limit.qty, 22);
+    }
+
+
+    #[test]
+    fn can_make_trade()
+    {
+        let mut limit = Limit::new(12.2f32);
+        let order = Order{id:1, side: Side::Buy, price:12.2f32, qty:100};
+        let order2 = Order{id:2, side: Side::Buy, price:12.2f32, qty:22};
+        let order3 = Order{id:3, side: Side::Buy, price:12.2f32, qty:44};
+
+        limit.add_order(order);
+        limit.add_order(order2);
+        limit.add_order(order3);
+
+        assert_eq!(limit.qty, 166);
+
+        let mut order_to_match = Order{id : 4, side : Side::Sell, price:12.2f32, qty : 90};
+        let trades = limit.make_trades(&mut order_to_match);
+        assert_eq!(trades.len(), 3);
+        assert_eq!(limit.num_orders(), 1);
+        assert_eq!(limit.qty, 166 - 90);
+
+        println!("trades = {:?}", trades);
     }
 }

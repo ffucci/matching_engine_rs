@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 
 trait Creator
 {
-    /// Adds a new order to the vector of orders, the orders are added in FIFO fashion
+    /// Create a new type
     /// 
     /// # Arguments
     /// 
@@ -78,7 +78,6 @@ impl PartialOrd for BidKey
 
 //////////////////////////// ORDERBOOK /////////////////////////////// 
 
-
 #[derive(Debug)]
 struct OrderBook
 {
@@ -94,7 +93,6 @@ fn insert_order<T : Ord + Creator>(curr_side : &mut BTreeMap<T, Limit>, order : 
     let curr_limit = curr_side.entry(key).or_insert(Limit::new(order.price));
     curr_limit.add_order(order);        
 }
-
 
 impl OrderBook {
 
@@ -160,6 +158,7 @@ mod test {
         let best_price = order_book._ask.iter().next();
         println!("{:?}", order_book);
         println!("Best Price = {:?}", best_price);
+        assert_eq!((*best_price.unwrap().1).price, 12.2f32);
     }
 
     #[test]
