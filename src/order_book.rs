@@ -8,8 +8,12 @@ use std::cmp::Ordering;
 
 trait Creator
 {
-    type T;
-    fn create(price : f32) -> Self::T;
+    /// Adds a new order to the vector of orders, the orders are added in FIFO fashion
+    /// 
+    /// # Arguments
+    /// 
+    /// * `price` - The price to take in consideration
+    fn create(price : f32) -> Self;
 }
 
 #[derive(PartialEq,Eq, Ord, PartialOrd, Debug)]
@@ -17,11 +21,9 @@ struct AskKey(OrderedFloat<f32>);
 
 impl Creator for AskKey
 {
-    type T = AskKey;
-
-    fn create(price: f32) -> AskKey
+    fn create(price: f32) -> Self
     {
-        AskKey(OrderedFloat(price))
+        Self(OrderedFloat(price))
     }
 }
 
@@ -32,10 +34,9 @@ struct BidKey(OrderedFloat<f32>);
 
 impl Creator for BidKey
 {
-    type T = BidKey;
-    fn create(price: f32) -> BidKey
+    fn create(price: f32) -> Self
     {
-        BidKey(OrderedFloat(price))
+        Self(OrderedFloat(price))
     }
 }
 
@@ -86,7 +87,7 @@ struct OrderBook
     pub _ask : BTreeMap<AskKey, Limit>
 }
 
-fn insert_order<T : Ord + Creator<T = T>>(curr_side : &mut BTreeMap<T, Limit>, order : Order)
+fn insert_order<T : Ord + Creator>(curr_side : &mut BTreeMap<T, Limit>, order : Order)
 {
     let key = T::create(order.price);
     // Here we need to match first and then we can do the rest
@@ -118,7 +119,7 @@ impl OrderBook {
         let val = self._bid.iter().next();
         match &val
         {
-            Some((k, l)) => Some(l),
+            Some((_, l)) => Some(l),
             None => None,
         }
     }
@@ -128,7 +129,7 @@ impl OrderBook {
         let val = self._ask.iter().next();
         match &val
         {
-            Some((k, l)) => Some(l),
+            Some((_, l)) => Some(l),
             None => None,
         }
     }
