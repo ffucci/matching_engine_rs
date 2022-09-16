@@ -1,2 +1,2 @@
-# matching_engine_rs
+# Matching Engine
 A matching engine implementation in Rust
