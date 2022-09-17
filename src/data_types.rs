@@ -113,7 +113,8 @@ impl Limit
                 {
                     need_to_remove = true;
                 }
-    
+                // println!("passive_order {:?}", passive_order);
+                // println!("aggressive_order {:?}", aggressive_order);
                 trades.push(Trade{aggressive_id : aggressive_order.id, 
                     passive_id : passive_order.id, 
                     price : passive_order.price, 
@@ -122,7 +123,7 @@ impl Limit
 
             if need_to_remove
             {
-                self.orders.pop();
+                self.orders.remove(0);
             }
         }
         
