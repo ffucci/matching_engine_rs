@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use crate::data_types::*;
+use crate::matching;
 
 use ordered_float::OrderedFloat;
 use std::cmp::Ord;
@@ -82,7 +83,8 @@ struct OrderBook
 {
     _symbol: String,
     pub _bid : BTreeMap<BidKey, Limit>,
-    pub _ask : BTreeMap<AskKey, Limit>
+    pub _ask : BTreeMap<AskKey, Limit>,
+    pub _trades : Vec<Trade>
 }
 
 fn insert_order<T : Ord + Creator>(curr_side : &mut BTreeMap<T, Limit>, order : Order)
@@ -99,15 +101,38 @@ impl OrderBook {
     {
         OrderBook { _symbol : symbol.to_string(), 
                     _bid: BTreeMap::new(), 
-                    _ask: BTreeMap::new()}
+                    _ask: BTreeMap::new(),
+                    _trades : vec![]}
     }
 
-    pub fn insert_order_at_level(&mut self, order: Order)
+    pub fn insert_order_at_level(&mut self, order: &mut Order)
     {
         match &order.side
         {
-            Side::Buy => insert_order(&mut self._bid, order),
-            Side::Sell => insert_order(&mut self._ask, order),
+            Side::Buy => 
+            {
+                // If I find something at a lower or equal price respect to what I want to buy
+                let match_bid_strategy = |best_availiable_price, current_offered_price| 
+                {
+                    OrderedFloat(best_availiable_price) <= OrderedFloat(current_offered_price)
+                };
+                let mut bid_trades = matching::match_order(&mut self._ask, &match_bid_strategy, order);
+                self._trades.append(&mut bid_trades);
+                insert_order(&mut self._bid, *order);
+            },
+            Side::Sell => 
+            {
+                // If I find something at a lower or equal price respect to what I want to buy
+                let match_ask_strategy = |best_availiable_price, current_offered_price| 
+                {
+                    OrderedFloat(best_availiable_price) >= OrderedFloat(current_offered_price)
+                };
+                println!("OK");
+                let mut bid_trades = matching::match_order(&mut self._bid, &match_ask_strategy, order);
+                self._trades.append(&mut bid_trades);
+                println!("OK2");
+                insert_order(&mut self._ask, *order)
+            },
         }
     }
 
@@ -150,10 +175,10 @@ mod test {
     fn insert_order_at_level_is_correct()
     {
         let mut order_book = OrderBook::new("AAPL");
-        let order = Order{id:1, side:Side::Sell, price:12.2f32, qty:100};
-        order_book.insert_order_at_level(order);
-        let order2 = Order{id:1, side:Side::Sell, price:12.5f32, qty:100};
-        order_book.insert_order_at_level(order2);
+        let mut order = Order{id:1, side:Side::Sell, price:12.2f32, qty:100};
+        order_book.insert_order_at_level(&mut order);
+        let mut order2 = Order{id:1, side:Side::Sell, price:12.5f32, qty:100};
+        order_book.insert_order_at_level(&mut order2);
         let best_price = order_book._ask.iter().next();
         println!("{:?}", order_book);
         println!("Best Price = {:?}", best_price);
@@ -164,10 +189,10 @@ mod test {
     fn insert_multiple_orders()
     {
         let mut order_book = OrderBook::new("AAPL");
-        let order = Order{id:1, side:Side::Buy, price:12.2f32, qty:100};
-        order_book.insert_order_at_level(order);
-        let order2 = Order{id:2, side:Side::Sell, price:12.5f32, qty:25};
-        order_book.insert_order_at_level(order2);
+        let mut order = Order{id:1, side:Side::Buy, price:12.2f32, qty:100};
+        order_book.insert_order_at_level(&mut order);
+        let mut order2 = Order{id:2, side:Side::Sell, price:12.5f32, qty:25};
+        order_book.insert_order_at_level(&mut order2);
         println!("{:?}", order_book);
         assert_eq!(order_book._bid.len(), 1);
         assert_eq!(order_book._ask.len(), 1);
@@ -177,10 +202,10 @@ mod test {
     fn insert_multiple_orders_at_same_level()
     {
         let mut order_book = OrderBook::new("AAPL");
-        let order = Order{id:1, side:Side::Sell, price:12.2f32, qty:100};
-        order_book.insert_order_at_level(order);
-        let order2 = Order{id:2, side:Side::Sell, price:12.2f32, qty:25};
-        order_book.insert_order_at_level(order2);
+        let mut order = Order{id:1, side:Side::Sell, price:12.2f32, qty:100};
+        order_book.insert_order_at_level(&mut order);
+        let mut order2 = Order{id:2, side:Side::Sell, price:12.2f32, qty:25};
+        order_book.insert_order_at_level(&mut order2);
         println!("{:?}", order_book);
         assert_eq!(order_book._ask.len(), 1);
         assert_eq!(order_book.best_ask().unwrap().num_orders(), 2);
@@ -191,20 +216,20 @@ mod test {
     fn insert_multiple_orders_at_different_level()
     {
         let mut order_book = OrderBook::new("AAPL");
-        let order = Order{id:1, side:Side::Sell, price:12.2f32, qty:100};
-        let order2 = Order{id:2, side:Side::Sell, price:12.2f32, qty:25};
-        let order3 = Order{id:3, side:Side::Sell, price:12.5f32, qty:25};
-        order_book.insert_order_at_level(order);
-        order_book.insert_order_at_level(order2);
-        order_book.insert_order_at_level(order3);
+        let mut order = Order{id:1, side:Side::Sell, price:12.2f32, qty:100};
+        let mut order2 = Order{id:2, side:Side::Sell, price:12.2f32, qty:25};
+        let mut order3 = Order{id:3, side:Side::Sell, price:12.5f32, qty:25};
+        order_book.insert_order_at_level(&mut order);
+        order_book.insert_order_at_level(&mut order2);
+        order_book.insert_order_at_level(&mut order3);
 
         // Add buy orders
-        let order4 = Order{id:4, side:Side::Buy, price:12.1f32, qty:100};
-        let order5 = Order{id:5, side:Side::Buy, price:12.1f32, qty:25};
-        let order6 = Order{id:6, side:Side::Buy, price:12.15f32, qty:25};
-        order_book.insert_order_at_level(order4);
-        order_book.insert_order_at_level(order5);
-        order_book.insert_order_at_level(order6);
+        let mut order4 = Order{id:4, side:Side::Buy, price:12.1f32, qty:100};
+        let mut order5 = Order{id:5, side:Side::Buy, price:12.1f32, qty:25};
+        let mut order6 = Order{id:6, side:Side::Buy, price:12.15f32, qty:25};
+        order_book.insert_order_at_level(&mut order4);
+        order_book.insert_order_at_level(&mut order5);
+        order_book.insert_order_at_level(&mut order6);
 
         println!("{:?}", order_book);
         assert_eq!(order_book._ask.len(), 2);

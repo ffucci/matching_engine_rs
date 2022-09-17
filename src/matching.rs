@@ -1,13 +1,10 @@
 use std::primitive;
 use std::{collections::BTreeMap, ops::Deref};
 use crate::data_types::*;
-use crate::order_book::*;
 
-type F = fn(f32, f32) -> bool;
-
-fn match_order<T : Ord >(curr_side : &mut BTreeMap<T, Limit>, 
-                        can_trade : &dyn Fn(f32, f32) -> bool, 
-                        order : &mut Order) -> Vec<Trade>
+pub fn match_order<T : Ord >(curr_side : &mut BTreeMap<T, Limit>, 
+                         can_trade : &dyn Fn(f32, f32) -> bool, 
+                         order : &mut Order) -> Vec<Trade>
 {
     let mut trades = Vec::new();
     // Here we need to match first and then we can do the rest
@@ -27,16 +24,16 @@ fn match_order<T : Ord >(curr_side : &mut BTreeMap<T, Limit>,
         }
 
         let (_, limit) = price_level.unwrap();
-        if !can_trade(order.price, limit.price)
+        if !can_trade(limit.price, order.price)
         {
+            println!("Cannot trade");
             break;
         }
 
         // Make trades up until we can and reduce the qty accordingly
         let mut trades_at_price = limit.make_trades(order);
         trades.append(&mut trades_at_price);
-
-        println!("limit = {:?}", limit);
+        println!("limit={:?}", limit);
     }
 
     return trades;
