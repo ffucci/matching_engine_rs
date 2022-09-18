@@ -14,13 +14,16 @@ env:
 jobs:
 
   test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
-      - name: Build
+        with:
+            toolchain: stable
+            override: true
+            components: rustfmt, clippy      - name: Build
         run: cargo build --all-targets --verbose
       - name: Test
         run: cargo test --verbose
