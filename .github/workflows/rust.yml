@@ -16,16 +16,22 @@ env:
   CRATE_PATHS: .
 
 jobs:
-  build:
 
-    runs-on: ubuntu-latest
-
+  test:
+    runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION_STABLE }}
+          profile: minimal
+          override: true
+      - name: Build
+        run: cargo build --all-targets
+      - name: Test
+        run: cargo test
 
   check-coverage:
       runs-on: ubuntu-18.04
