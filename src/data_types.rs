@@ -41,7 +41,7 @@ pub struct Limit
 {
     pub price : f32,
     pub qty : u32,
-    orders: Vec<Order>,
+    pub orders: Vec<Order>,
 }
 
 impl Limit
@@ -90,11 +90,6 @@ impl Limit
         // Cannot make any trade if the price do not match or is empty
         let mut trades = Vec::new();
 
-        if OrderedFloat(self.price) != OrderedFloat(aggressive_order.price) || self.orders.is_empty()
-        {
-            return trades;
-        }
-
         loop
         {
             if aggressive_order.qty == 0 || self.orders.is_empty()
@@ -113,8 +108,8 @@ impl Limit
                 {
                     need_to_remove = true;
                 }
-                // println!("passive_order {:?}", passive_order);
-                // println!("aggressive_order {:?}", aggressive_order);
+                println!("passive_order {:?}", passive_order);
+                println!("aggressive_order {:?}", aggressive_order);
                 trades.push(Trade{aggressive_id : aggressive_order.id, 
                     passive_id : passive_order.id, 
                     price : passive_order.price, 

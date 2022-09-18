@@ -1,5 +1,4 @@
-use std::primitive;
-use std::{collections::BTreeMap, ops::Deref};
+use std::collections::BTreeMap;
 use crate::data_types::*;
 
 pub fn match_order<T : Ord >(curr_side : &mut BTreeMap<T, Limit>, 
@@ -10,13 +9,14 @@ pub fn match_order<T : Ord >(curr_side : &mut BTreeMap<T, Limit>,
     // Here we need to match first and then we can do the rest
     loop 
     {
-        if order.qty == 0
+        // If there are no order anymore at a certain level let's clean the level
+        curr_side.retain(|k, level| level.qty != 0 && level.num_orders() != 0);
+
+        if order.qty == 0 || curr_side.is_empty()
         {
             break;
         }
 
-        // If there are no order anymore at a certain level let's clean the level
-        curr_side.retain(|k, level| level.qty != 0);
         let price_level = curr_side.iter_mut().next();
         if price_level.is_none()
         {
@@ -26,14 +26,13 @@ pub fn match_order<T : Ord >(curr_side : &mut BTreeMap<T, Limit>,
         let (_, limit) = price_level.unwrap();
         if !can_trade(limit.price, order.price)
         {
-            println!("Cannot trade");
             break;
         }
 
+        println!("Can trade @price {0} ", limit.price);
         // Make trades up until we can and reduce the qty accordingly
         let mut trades_at_price = limit.make_trades(order);
         trades.append(&mut trades_at_price);
-        println!("limit={:?}", limit);
     }
 
     return trades;

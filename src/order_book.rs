@@ -90,7 +90,6 @@ struct OrderBook
 fn insert_order<T : Ord + Creator>(curr_side : &mut BTreeMap<T, Limit>, order : Order)
 {
     let key = T::create(order.price);
-    // Here we need to match first and then we can do the rest
     let curr_limit = curr_side.entry(key).or_insert(Limit::new(order.price));
     curr_limit.add_order(order);        
 }
@@ -116,21 +115,37 @@ impl OrderBook {
                 {
                     OrderedFloat(best_availiable_price) <= OrderedFloat(current_offered_price)
                 };
+
                 let mut bid_trades = matching::match_order(&mut self._ask, &match_bid_strategy, order);
-                self._trades.append(&mut bid_trades);
+                if !bid_trades.is_empty()
+                {
+                    self._trades.append(&mut bid_trades);
+                }
+
+                if order.qty == 0
+                {
+                    return
+                }
+                
                 insert_order(&mut self._bid, *order);
             },
             Side::Sell => 
             {
-                // If I find something at a lower or equal price respect to what I want to buy
+                // If I find something at a higher or equal price respect to what I want to buy
                 let match_ask_strategy = |best_availiable_price, current_offered_price| 
                 {
                     OrderedFloat(best_availiable_price) >= OrderedFloat(current_offered_price)
                 };
-                println!("OK");
-                let mut bid_trades = matching::match_order(&mut self._bid, &match_ask_strategy, order);
-                self._trades.append(&mut bid_trades);
-                println!("OK2");
+                let mut ask_trades = matching::match_order(&mut self._bid, &match_ask_strategy, order);
+                if !ask_trades.is_empty()
+                {
+                    self._trades.append(&mut ask_trades);
+                }
+                if order.qty == 0
+                {
+                    return
+                }
+
                 insert_order(&mut self._ask, *order)
             },
         }
@@ -167,8 +182,9 @@ mod test {
     #[test]
     fn create_order_book()
     {
-        let mut order_book = OrderBook::new("AAPL");
+        let order_book = OrderBook::new("AAPL");
         println!("{:?}", order_book);
+        assert_eq!(order_book._symbol, "AAPL");
     }
 
     #[test]
@@ -231,7 +247,6 @@ mod test {
         order_book.insert_order_at_level(&mut order5);
         order_book.insert_order_at_level(&mut order6);
 
-        println!("{:?}", order_book);
         assert_eq!(order_book._ask.len(), 2);
         let best_ask_price = order_book.best_ask().unwrap();
         assert_eq!(best_ask_price.num_orders(), 2);
@@ -244,5 +259,85 @@ mod test {
         assert_eq!(best_bid_price.qty, 25);
         assert_eq!(OrderedFloat(best_bid_price.price), OrderedFloat(12.15f32));
     }
+
+    #[test]
+    fn cannot_insert_empty_order()
+    {
+        let mut order_book = OrderBook::new("AAPL");
+        let mut _id : u32 = 1;
+        let mut order = Order{id:_id, side:Side::Buy, price:12.2f32, qty:0};
+        order_book.insert_order_at_level(&mut order);
+        assert_eq!(order_book.best_bid().is_none(), true);
+        assert_eq!(order_book.best_ask().is_none(), true);
+        let mut empty_sell_order = Order{id:_id, side:Side::Sell, price:12.2f32, qty:0};
+        order_book.insert_order_at_level(&mut empty_sell_order);
+    }
+
+    #[test]
+    fn match_orders_multiple()
+    {
+        let mut order_book = OrderBook::new("AAPL");
+        let mut _id : u32 = 1;
+        let mut order = Order{id:_id, side:Side::Buy, price:12.2f32, qty:100};
+        _id += 1;
+
+        let mut order2 = Order{id:_id, side:Side::Buy, price:12.2f32, qty:25};
+        _id += 1;
+
+        let mut order3 = Order{id:_id, side:Side::Buy, price:12.5f32, qty:25};
+        _id += 1;
+
+        let mut order4 = Order{id:_id, side:Side::Buy, price:12.7f32, qty:25};
+        _id += 1;
+
+        order_book.insert_order_at_level(&mut order);
+        order_book.insert_order_at_level(&mut order2);
+        order_book.insert_order_at_level(&mut order3);
+        order_book.insert_order_at_level(&mut order4);
+
+        // Add sell orders
+        let mut order5 = Order{id:_id, side:Side::Sell, price:12.2f32, qty:100};
+        _id += 1;
+
+        order_book.insert_order_at_level(&mut order5);
+        println!("trades = {:?}", order_book._trades);
+        let t1 = Trade::new(5, 4, 12.7f32, 25);
+        let t2 = Trade::new(5, 3, 12.5f32, 25);
+        let t3 = Trade::new(5, 1, 12.2f32, 50);
+        let mut expected_trades = vec![t1,t2,t3];
+        assert_eq!(order_book._trades, expected_trades);
+        assert_eq!(order_book._trades.len(), 3);
+        assert_eq!(order_book.best_bid().is_some(), true);
+        assert_eq!(order_book.best_bid().unwrap().qty, 75);
+
+        assert_eq!(order_book.best_bid().unwrap().num_orders(), 2);
+        let exp_order1 = Order{id:1, side:Side::Buy, price:12.2f32, qty:50};
+        let exp_order2 = Order{id:2, side:Side::Buy, price:12.2f32, qty:25};
+        let expected_orders_at_level = vec![exp_order1, exp_order2];
+        assert_eq!(order_book.best_bid().unwrap().orders, expected_orders_at_level);
+    
+        let mut order6 = Order{id:_id, side:Side::Sell, price:12.1f32, qty:25};
+        _id += 1;
+
+        order_book.insert_order_at_level(&mut order6);
+        assert_eq!(order_book._trades.len(), 4);
+        expected_trades.push(Trade::new(6, 1, 12.2, 25));
+        assert_eq!(order_book._trades, expected_trades);
+
+        let mut order7 = Order{id:_id, side:Side::Sell, price:12.01f32, qty:50};
+        _id += 1;
+
+        expected_trades.push(Trade::new(7, 1, 12.2, 25));
+        expected_trades.push(Trade::new(7, 2, 12.2, 25));
+
+        // INSERT LAST ORDER IN THE ORDER BOOK
+        order_book.insert_order_at_level(&mut order7);
+
+        assert_eq!(order_book._trades.len(), 6);
+        assert_eq!(order_book._trades, expected_trades);
+        assert_eq!(order_book.best_bid().is_none(), true);
+        assert_eq!(order_book.best_ask().is_none(), true);
+    }
+
 
 }
