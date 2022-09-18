@@ -29,9 +29,9 @@ jobs:
           profile: minimal
           override: true
       - name: Build
-        run: cargo build --all-targets
+        run: cargo build --all-targets --verbose
       - name: Test
-        run: cargo test
+        run: cargo test --verbose
 
   check-coverage:
       runs-on: ubuntu-18.04
