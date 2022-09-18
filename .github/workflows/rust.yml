@@ -46,10 +46,15 @@ jobs:
         - name: Install grcov
           run: cargo install grcov --debug
         - name: Run coverage
-          script:
-              - rustup component add llvm-tools-preview
-              - export RUSTFLAGS="-Cinstrument-coverage"
-              - cargo build --verbose
-              - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
-              - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
-              - bash <(curl -s https://codecov.io/bash) -f lcov.info
+          run: bash .github/workflows/scripts/run_coverage.sh
+        - name: Upload coverage report on GitHub
+          uses: actions/upload-artifact@v2
+          with:
+            name: coverage
+            path: coverage
+            if-no-files-found: error
+            retention-days: 1
+        - name: Upload coverage report on Codecov
+          run: bash .github/workflows/scripts/upload_coverage_on_codecov.sh
+        - name: Check coverage threshold
+          run: bash .github/workflows/scripts/check_coverage.sh
