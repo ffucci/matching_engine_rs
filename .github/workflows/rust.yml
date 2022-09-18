@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  COV_THRESHOLD: 100.0
+  COV_THRESHOLD: 90.0
   CRATE_PATHS: .
 
 jobs:
