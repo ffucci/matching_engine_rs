@@ -23,7 +23,8 @@ jobs:
         with:
             toolchain: stable
             override: true
-            components: rustfmt, clippy      - name: Build
+            components: rustfmt, clippy      
+      - name: Build
         run: cargo build --all-targets --verbose
       - name: Test
         run: cargo test --verbose
