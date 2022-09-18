@@ -8,15 +8,53 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  COV_THRESHOLD: 90.0
+  CRATE_PATHS: .
 
 jobs:
-  build:
 
+  test:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            components: rustfmt, clippy      
+      - name: Build
+        run: cargo build --all-targets --verbose
+      - name: Test
+        run: cargo test --verbose
+
+  check-coverage:
+      runs-on: ubuntu-latest
+      needs: test
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+          with:
+            fetch-depth: 2
+        - name: Install Rust toolchain
+          uses: actions-rs/toolchain@v1
+          with:
+              toolchain: stable
+              override: true
+              components: rustfmt, clippy      
+        - name: Install grcov
+          run: cargo install grcov --debug
+        - name: Run coverage
+          run: bash .github/workflows/scripts/run_coverage.sh
+        - name: Upload coverage report on GitHub
+          uses: actions/upload-artifact@v2
+          with:
+            name: coverage
+            path: coverage
+            if-no-files-found: error
+            retention-days: 1
+        - name: Upload coverage report on Codecov
+          run: bash .github/workflows/scripts/upload_coverage_on_codecov.sh
+        - name: Check coverage threshold
+          run: bash .github/workflows/scripts/check_coverage.sh
