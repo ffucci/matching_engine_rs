@@ -30,7 +30,7 @@ jobs:
         run: cargo test --verbose
 
   check-coverage:
-      runs-on: ubuntu-18.04
+      runs-on: ubuntu-latest
       needs: test
       steps:
         - name: Checkout
