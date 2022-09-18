@@ -8,11 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_VERSION_STABLE: 1.51.0
-  RUST_VERSION_NIGHTLY: nightly-2021-03-25
-  MUTAGEN_COMMIT: f8249256c40769c916b5b00bd284f204d5540588
   COV_THRESHOLD: 100.0
-  MUTAGEN_THRESHOLD: 100.0
   CRATE_PATHS: .
 
 jobs:
@@ -24,10 +20,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_VERSION_STABLE }}
-          profile: minimal
-          override: true
       - name: Build
         run: cargo build --all-targets --verbose
       - name: Test
