@@ -81,7 +81,7 @@ impl Limit
                 self.qty -= self.orders[upos].qty;
                 Ok(self.orders.remove(upos))
             },
-            None => Err("cannot remove"),
+            None => Err("cannot remove order from limit"),
         }
     }
 
@@ -207,5 +207,14 @@ mod tests
         assert_eq!(limit.qty, 166 - 90);
 
         println!("trades = {:?}", trades);
+    }
+
+    #[test]
+    fn remove_empty_order_gives_error()
+    {
+        let mut limit = Limit::new(12.2f32);
+        let val = limit.remove_order(0);
+        assert_eq!(val.is_err(), true);
+        assert_eq!(val, Err("cannot remove order from limit"));
     }
 }

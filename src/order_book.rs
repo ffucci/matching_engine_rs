@@ -274,7 +274,7 @@ mod test {
     }
 
     #[test]
-    fn match_orders_multiple()
+    fn match_orders_multiple_ask()
     {
         let mut order_book = OrderBook::new("AAPL");
         let mut _id : u32 = 1;
@@ -337,6 +337,38 @@ mod test {
         assert_eq!(order_book._trades, expected_trades);
         assert_eq!(order_book.best_bid().is_none(), true);
         assert_eq!(order_book.best_ask().is_none(), true);
+    }
+
+    #[test]
+    fn match_orders_multiple_bid()
+    {
+        let mut order_book = OrderBook::new("AAPL");
+        let mut _id : u32 = 1;
+        let mut order = Order{id:_id, side:Side::Sell, price:12.2f32, qty:100};
+        _id += 1;
+
+        let mut order2 = Order{id:_id, side:Side::Sell, price:12.2f32, qty:25};
+        _id += 1;
+
+        order_book.insert_order_at_level(&mut order);
+        order_book.insert_order_at_level(&mut order2);
+
+        // Add sell orders
+        let mut order3 = Order{id:_id, side:Side::Buy, price:12.4f32, qty:50};
+        _id += 1;
+
+        order_book.insert_order_at_level(&mut order3);
+        println!("trades = {:?}", order_book._trades);
+        let t1 = Trade::new(3, 1, 12.2f32, 50);
+
+        let expected_qty = 125 - 50;
+        let mut expected_trades = vec![t1];
+        assert_eq!(order_book._trades, expected_trades);
+        assert_eq!(order_book._trades.len(), 1);
+        assert_eq!(order_book.best_ask().is_some(), true);
+        assert_eq!(order_book.best_ask().unwrap().qty, expected_qty);
+        assert_eq!(order_book.best_bid().is_some(), false);
+
     }
 
 
