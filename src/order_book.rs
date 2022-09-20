@@ -86,7 +86,7 @@ impl PartialOrd for BidKey
 /// # Arguments
 /// 
 #[derive(Debug)]
-struct OrderBook
+pub struct OrderBook
 {
     _symbol: String,
     pub _bid : BTreeMap<BidKey, Limit>,
@@ -215,7 +215,6 @@ impl OrderBook {
             }
         }
 
-        return Err("Impossible to cancel order");
     }
 
 
@@ -244,6 +243,52 @@ impl OrderBook {
         }
     }
 
+    /// get_spread returns the spread, the difference between
+    /// best ask and best bid price
+    /// 
+    /// # Arguments
+    /// # Return
+    /// * spread : f32 = value containing the current spread
+    pub fn get_spread(&self) -> f32
+    {
+        let best_ask = self.best_ask();
+        let best_bid = self.best_bid();
+
+        // If both of them are None the spread is zero
+        if best_ask.is_none() && best_bid.is_none()
+        {
+            return 0.0f32;
+        }
+
+        if best_ask.is_none()
+        {
+            return -best_bid.unwrap().price;
+        }
+
+        if best_bid.is_none()
+        {
+            return best_ask.unwrap().price;
+        }
+
+        return self.best_ask().unwrap().price - self.best_bid().unwrap().price;
+    }
+
+    /// prints a summary of the  returns the spread, the difference between
+    /// best ask and best bid price
+    /// 
+    /// # Arguments
+    /// # Return
+    /// * spread : f32 = value containing the current spread
+
+    pub fn summary(&self)
+    {
+        let best_ask = self.best_ask();
+        let best_bid = self.best_bid();
+
+        println!("Best Ask = {:#?}, Best Bid = {:#?}", best_ask, best_bid);
+        println!("Number of trades = {0}", self._trades.len());
+        println!("Spread = {0}", self.get_spread());
+    }
 
 }
 
@@ -447,7 +492,7 @@ mod test {
     }
 
     #[test]
-    fn can_cancel_an_order()
+    fn can_cancel_orders()
     {
         let mut order_book = OrderBook::new("TSLA");
         let mut order = Order{id:1, side:Side::Buy, price:122.2f32, qty:100};
@@ -460,6 +505,11 @@ mod test {
         let cancelled_order = order_book.cancel_order(&order);
         assert_eq!(cancelled_order.unwrap(), order);
         assert_eq!(order_book._bid.is_empty(), true);
+
+        let cancelled_order2 = order_book.cancel_order(&order2);
+        assert_eq!(cancelled_order2.unwrap(), order2);
+        assert_eq!(order_book._ask.is_empty(), true);
+
     }
 
     #[test]
@@ -474,5 +524,47 @@ mod test {
         let cancelled_order = order_book.cancel_order(&order2);
         assert_eq!(cancelled_order, Err("Limit is not present in the OrderBook"));
         assert_eq!(order_book._bid.is_empty(), false);
+    }
+
+    #[test]
+    fn can_compute_spread()
+    {
+        let mut order_book = OrderBook::new("TSLA");
+        let mut order = Order{id:1, side:Side::Buy, price:122.2f32, qty:100};
+        let mut order2 = Order{id:2, side:Side::Sell, price:122.55f32, qty:100};
+
+        order_book.insert_order_at_level(&mut order);
+        order_book.insert_order_at_level(&mut order2);
+
+        assert_eq!(order_book.get_spread(), 122.55f32 - 122.2f32);
+    }
+
+    #[test]
+    fn can_compute_spread_when_bid_is_none()
+    {
+        let mut order_book = OrderBook::new("TSLA");
+        let mut order = Order{id:1, side:Side::Buy, price:122.2f32, qty:100};
+
+        order_book.insert_order_at_level(&mut order);
+
+        assert_eq!(order_book.get_spread(), -122.2f32);
+    }
+
+    #[test]
+    fn can_compute_spread_when_ask_is_none()
+    {
+        let mut order_book = OrderBook::new("TSLA");
+        let mut order = Order{id:1, side:Side::Sell, price:122.2f32, qty:100};
+
+        order_book.insert_order_at_level(&mut order);
+
+        assert_eq!(order_book.get_spread(), 122.2f32);
+    }
+
+    #[test]
+    fn test_summary()
+    {
+        let order_book = OrderBook::new("TSLA");
+        order_book.summary();
     }
 }
