@@ -1,24 +1,65 @@
+use matching_engine::order_book::OrderBook;
+use matching_engine::data_types::{Order, Side};
 use tokio::{net::{TcpListener, TcpStream}, io::AsyncReadExt};
 use tokio::io::{self, AsyncWriteExt};
+use bytes::{BytesMut, Buf};
+use bytes::BufMut;
+use std::io::Cursor;
+use byteorder::{NetworkEndian};
+
 
 #[tokio::main]
 async fn main() {
     // Bind the listener to the address
     let listener = TcpListener::bind("127.0.0.1:6001").await.unwrap();
-
+    let mut order_book = Box::new(OrderBook::new("TSLA"));
+    
     loop {
         // The second item contains the IP and port of the new connection.
         let (mut socket, _) = listener.accept().await.unwrap();
-        process(&mut socket).await;
+        process(&mut socket, &mut order_book).await;
     }
 }
 
-const MESSAGE_SIZE : usize = 12;
+fn decode_order(buf : &mut BytesMut) -> Option<Order>
+{
+    // Decode ID
+    let mut id_arr = [0u8; 4];
+    let mut pos_id = buf.split_to(4);
+    id_arr.copy_from_slice(&pos_id[..4]);
+    let received_id =  u32::from_be_bytes(id_arr);
 
-async fn process(socket: &mut TcpStream) {
+    // Decode SIDE
+    let mut side = Side::Buy;
+    let mut side_val = 0u8;
+    let side_mut = buf.split_to(1);
+    let received_side = u8::from_be(side_mut[0]);
+    if received_side == 0x2
+    {
+        side = Side::Sell;
+    }
+
+    // Decode price
+    let mut price_arr = [0u8; 4];
+    let price_buf = buf.split_to(4);
+    price_arr.copy_from_slice(&price_buf[..4]);
+
+    let received_price = f32::from_be_bytes(price_arr);
+    Some(Order::new(received_id, side, received_price, 100))
+}
+
+async fn process(socket: &mut TcpStream, order_book : &mut OrderBook) {
     println!("socket {:?}", socket);
     let mut rx_bytes = Vec::new();
     socket.read_to_end(&mut rx_bytes).await;
-    let received = std::str::from_utf8(&rx_bytes).expect("valid utf8");
-    println!("Received: {0}", received);
+    println!("Received bytes: {:?}", rx_bytes);
+    let mut bytes_mut = BytesMut::from(rx_bytes.as_slice());
+    while !bytes_mut.is_empty()
+    {
+        let received_order = decode_order(&mut bytes_mut);
+        println!("Received order: {:?}", received_order);
+        order_book.insert_order_at_level(&mut received_order.unwrap());
+    
+        println!("Order Book : {:?}", order_book);
+    }
 }

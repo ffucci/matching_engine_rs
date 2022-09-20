@@ -1,6 +1,5 @@
 #![crate_name = "doc"]
 use std::cmp;
-use ordered_float::OrderedFloat;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Side
@@ -16,6 +15,19 @@ pub struct Order
     pub side : Side,
     pub price : f32,
     pub qty : u32,
+}
+
+impl Order
+{
+    pub fn new(id: u32, side : Side, price : f32, qty : u32) -> Order
+    {
+        Order{
+            id : id,
+            side : side,
+            price : price,
+            qty : qty,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -71,6 +83,11 @@ impl Limit
         self.orders.push(order);
     }
 
+    /// Removes an order given a certain order-id
+    /// 
+    /// # Arguments
+    /// 
+    /// * `order_id` - The order id to be removed
     pub fn remove_order(&mut self, order_id: u32) -> Result<Order, &str>
     {
         let pos = self.orders.iter().position(|&ord| ord.id == order_id);
@@ -190,7 +207,7 @@ mod tests
     fn can_make_trade()
     {
         let mut limit = Limit::new(12.2f32);
-        let order = Order{id:1, side: Side::Buy, price:12.2f32, qty:100};
+        let order =  Order{id:1, side: Side::Buy, price:12.2f32, qty:100};
         let order2 = Order{id:2, side: Side::Buy, price:12.2f32, qty:22};
         let order3 = Order{id:3, side: Side::Buy, price:12.2f32, qty:44};
 

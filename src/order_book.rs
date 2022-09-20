@@ -86,7 +86,7 @@ impl PartialOrd for BidKey
 /// # Arguments
 /// 
 #[derive(Debug)]
-struct OrderBook
+pub struct OrderBook
 {
     _symbol: String,
     pub _bid : BTreeMap<BidKey, Limit>,
