@@ -31,7 +31,6 @@ fn decode_order(buf : &mut BytesMut) -> Option<Order>
 
     // Decode SIDE
     let mut side = Side::Buy;
-    let mut side_val = 0u8;
     let side_mut = buf.split_to(1);
     let received_side = u8::from_be(side_mut[0]);
     if received_side == 0x2
@@ -43,9 +42,15 @@ fn decode_order(buf : &mut BytesMut) -> Option<Order>
     let mut price_arr = [0u8; 4];
     let price_buf = buf.split_to(4);
     price_arr.copy_from_slice(&price_buf[..4]);
-
     let received_price = f32::from_be_bytes(price_arr);
-    Some(Order::new(received_id, side, received_price, 100))
+
+    // Decode qty
+    let mut qty_arr = [0u8; 4];
+    let qty_buf = buf.split_to(4);
+    qty_arr.copy_from_slice(&qty_buf[..4]);
+    let received_qty = u32::from_be_bytes(qty_arr);
+
+    Some(Order::new(received_id, side, received_price, received_qty))
 }
 
 async fn process(socket: &mut TcpStream, order_book : &mut OrderBook) {
@@ -59,7 +64,7 @@ async fn process(socket: &mut TcpStream, order_book : &mut OrderBook) {
         let received_order = decode_order(&mut bytes_mut);
         println!("Received order: {:?}", received_order);
         order_book.insert_order_at_level(&mut received_order.unwrap());
-    
-        println!("Order Book : {:?}", order_book);
     }
+
+    order_book.summary();
 }

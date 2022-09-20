@@ -1,10 +1,14 @@
+use rand_distr::Bernoulli;
 use tokio::net::TcpStream;
 use bytes::BytesMut;
 use bytes::BufMut;
 use tokio::io::{AsyncWriteExt};
 use std::error::Error;
-use std::io::Read;
 use matching_engine::data_types::{Order, Side};
+use rand_distr::{Distribution, Normal, Uniform};
+use rand::thread_rng;
+
+const MAX_SEQ : u32 = 1000u32;
 
 trait Encoder
 {
@@ -14,7 +18,6 @@ impl Encoder for Order
 {
     fn encode(&self, buf : &mut BytesMut)
     {
-        // buf.reserve(8);
         buf.put_u32(self.id);
 
         match self.side
@@ -24,32 +27,45 @@ impl Encoder for Order
         }
 
         buf.put_f32(self.price);
-
+        buf.put_u32(self.qty);
         println!("buffer size: {}", buf.len());
     }
 }
 
-const MAX_SEQ : u32 = 100u32;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Connect to a peer
     let mut stream = TcpStream::connect("127.0.0.1:6001").await?;
-
     let mut i = 0u32;
+
+    // Prepare random price generation
+    let mut rng = thread_rng();
+    let normal = Normal::new(0.05, 0.22)?;
+    let qty_distr = Uniform::from(1..500);
+    let bernoulli = Bernoulli::new(0.55).unwrap();
+
+    // This is the evolving price, which is price += N(0.05, (0.22)^2)
+    let mut evolving_price = 1021.2f32;
+
     while i <= MAX_SEQ
     {
         let mut side = Side::Buy;
-        if i % 5 == 0
+        let which_side = bernoulli.sample(&mut rand::thread_rng());
+        if which_side == true
         {
             side = Side::Sell;
         }
 
-        let order = Order{id:i, side: side, price:12.2f32, qty:100};
-        println!("Sending order: {:?}", order);
-        // Write some data.
-        let mut buffer = BytesMut::new();
+        let v = normal.sample(&mut rng);
+        evolving_price += v;
+
+        let _qty = qty_distr.sample(&mut rng);
+        let order = Order{id:i, side: side, price: evolving_price, qty: _qty};
+        println!("[CLIENT] -> Sending order: {:#?}", order);
         
+        // Write the message.
+        let mut buffer = BytesMut::new();
         // Encode order
         order.encode(&mut buffer);
 
