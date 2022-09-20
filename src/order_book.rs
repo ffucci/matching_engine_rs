@@ -117,7 +117,7 @@ fn cancel_order<'a, T : Ord + Creator>(curr_side : &'a mut BTreeMap<T, Limit>, o
         let limit : Option<&mut Limit> = curr_side.get_mut(&T::create(order.price));
         if limit.is_none()
         {
-            return Err("The order book is empty cannot cancel the order");
+            return Err("Limit is not present in the OrderBook");
         }
 
         removed_order= limit.unwrap().remove_order(order.id);
@@ -460,5 +460,19 @@ mod test {
         let cancelled_order = order_book.cancel_order(&order);
         assert_eq!(cancelled_order.unwrap(), order);
         assert_eq!(order_book._bid.is_empty(), true);
+    }
+
+    #[test]
+    fn error_when_cancelling_an_order_which_does_not_exist()
+    {
+        let mut order_book = OrderBook::new("TSLA");
+        let mut order = Order{id:1, side:Side::Buy, price:122.2f32, qty:100};
+        let order2 = Order{id:2, side:Side::Buy, price:122.55f32, qty:100};
+
+        order_book.insert_order_at_level(&mut order);
+
+        let cancelled_order = order_book.cancel_order(&order2);
+        assert_eq!(cancelled_order, Err("Limit is not present in the OrderBook"));
+        assert_eq!(order_book._bid.is_empty(), false);
     }
 }
