@@ -78,6 +78,13 @@ impl PartialOrd for BidKey
 
 //////////////////////////// ORDERBOOK /////////////////////////////// 
 
+/// Order Book contains an implementation of an order book with the following data
+/// * _bid is the map containing all the bid price levels
+/// * _ask is the map containing all the ask price levels
+/// * _trades are the trades currently collected
+/// 
+/// # Arguments
+/// 
 #[derive(Debug)]
 struct OrderBook
 {
@@ -87,6 +94,13 @@ struct OrderBook
     pub _trades : Vec<Trade>
 }
 
+/// insert_order function provides a way to insert order on a certain side of the book
+/// 
+/// # Arguments
+/// * current_side: is the map containing the current side on which we want to add an
+/// order
+/// * order: it's the order that we want to add
+///  
 fn insert_order<T : Ord + Creator>(curr_side : &mut BTreeMap<T, Limit>, order : Order)
 {
     let key = T::create(order.price);
@@ -94,8 +108,34 @@ fn insert_order<T : Ord + Creator>(curr_side : &mut BTreeMap<T, Limit>, order : 
     curr_limit.add_order(order);        
 }
 
+
+fn cancel_order<'a, T : Ord + Creator>(curr_side : &'a mut BTreeMap<T, Limit>, order : &Order) -> Result<Order, &'a str>
+{
+    
+    let mut removed_order : Result<Order, &str> = Ok(order.clone());
+    {
+        let limit : Option<&mut Limit> = curr_side.get_mut(&T::create(order.price));
+        if limit.is_none()
+        {
+            return Err("The order book is empty cannot cancel the order");
+        }
+
+        removed_order= limit.unwrap().remove_order(order.id);
+    }
+
+    let order_to_return = removed_order.unwrap().clone();
+    curr_side.retain(|_, limit: &mut Limit| limit.qty != 0);
+    return Ok(order_to_return);
+}
+
 impl OrderBook {
 
+
+    /// new function creates a new order book
+    /// 
+    /// # Arguments
+    /// * symbol: it's the symbol of that the order book is tracking
+    /// 
     pub fn new(symbol: &str) -> OrderBook
     {
         OrderBook { _symbol : symbol.to_string(), 
@@ -151,6 +191,39 @@ impl OrderBook {
         }
     }
 
+
+    /// cancel_order cancels an order from the order book
+    /// 
+    /// # Arguments
+    /// * order: the order to be cancelled from the orderbook
+    /// # Return
+    /// 
+    /// A result data type which either contains order or the string tag
+    fn cancel_order(&mut self, order : &Order) -> Result<Order, &str>
+    {
+        let side = order.side;
+
+        match side 
+        {
+            Side::Buy => 
+            {
+                return cancel_order(&mut self._bid, order);
+            },
+            Side::Sell =>
+            {
+                return cancel_order(&mut self._ask, order);
+            }
+        }
+
+        return Err("Impossible to cancel order");
+    }
+
+
+    /// best_bid returns the best bid that is currently available in the orderbook
+    /// 
+    /// # Arguments
+    /// # Return
+    /// An optional reference to the limit that is containing the best bid price
     pub fn best_bid(&self) -> Option<&Limit>
     {
         let val = self._bid.iter().next();
@@ -170,6 +243,8 @@ impl OrderBook {
             None => None,
         }
     }
+
+
 }
 
 #[cfg(test)]
@@ -371,5 +446,19 @@ mod test {
 
     }
 
+    #[test]
+    fn can_cancel_an_order()
+    {
+        let mut order_book = OrderBook::new("TSLA");
+        let mut order = Order{id:1, side:Side::Buy, price:122.2f32, qty:100};
+        order_book.insert_order_at_level(&mut order);
+        let mut order2 = Order{id:2, side:Side::Sell, price:122.5f32, qty:25};
+        order_book.insert_order_at_level(&mut order2);
+        assert_eq!(order_book._bid.len(), 1);
+        assert_eq!(order_book._ask.len(), 1);
 
+        let cancelled_order = order_book.cancel_order(&order);
+        assert_eq!(cancelled_order.unwrap(), order);
+        assert_eq!(order_book._bid.is_empty(), true);
+    }
 }
