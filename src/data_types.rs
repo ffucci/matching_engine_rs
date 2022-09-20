@@ -210,7 +210,7 @@ mod tests
     }
 
     #[test]
-    fn remove_empty_order_gives_error()
+    fn removing_empty_order_gives_error()
     {
         let mut limit = Limit::new(12.2f32);
         let val = limit.remove_order(0);
