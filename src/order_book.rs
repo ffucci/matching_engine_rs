@@ -215,7 +215,6 @@ impl OrderBook {
             }
         }
 
-        return Err("Impossible to cancel order");
     }
 
 
@@ -274,11 +273,13 @@ impl OrderBook {
         return self.best_ask().unwrap().price - self.best_bid().unwrap().price;
     }
 
-    /// prints a summary of the OrderBook state
+    /// prints a summary of the  returns the spread, the difference between
     /// best ask and best bid price
     /// 
     /// # Arguments
     /// # Return
+    /// * spread : f32 = value containing the current spread
+
     pub fn summary(&self)
     {
         let best_ask = self.best_ask();
@@ -491,7 +492,7 @@ mod test {
     }
 
     #[test]
-    fn can_cancel_an_order()
+    fn can_cancel_orders()
     {
         let mut order_book = OrderBook::new("TSLA");
         let mut order = Order{id:1, side:Side::Buy, price:122.2f32, qty:100};
@@ -504,6 +505,11 @@ mod test {
         let cancelled_order = order_book.cancel_order(&order);
         assert_eq!(cancelled_order.unwrap(), order);
         assert_eq!(order_book._bid.is_empty(), true);
+
+        let cancelled_order2 = order_book.cancel_order(&order2);
+        assert_eq!(cancelled_order2.unwrap(), order2);
+        assert_eq!(order_book._ask.is_empty(), true);
+
     }
 
     #[test]
@@ -553,5 +559,12 @@ mod test {
         order_book.insert_order_at_level(&mut order);
 
         assert_eq!(order_book.get_spread(), 122.2f32);
+    }
+
+    #[test]
+    fn test_summary()
+    {
+        let order_book = OrderBook::new("TSLA");
+        order_book.summary();
     }
 }

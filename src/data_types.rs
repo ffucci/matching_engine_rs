@@ -160,7 +160,9 @@ mod tests
     fn try_order()
     {
         let order = Order{id:1, side: Side::Buy, price:12.2f32, qty:100};
+        let created_order = Order::new(1, Side::Buy, 12.2f32, 100);
         println!("{:?}", order);
+        assert_eq!(created_order, order);
     }
 
     #[test]
